@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>친윤계 기밀 문서고</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;700;800&display=swap');
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen pb-24">
+
+    <!-- 🔒 잠금 화면 -->
+    <div id="login-screen" class="fixed inset-0 z-[100] bg-slate-900 flex flex-col justify-center items-center px-6 transition-opacity duration-500">
+        <div class="bg-slate-800 p-8 rounded-3xl w-full max-w-sm border border-slate-700 shadow-2xl text-center">
+            <h1 class="text-3xl mb-2">👑</h1>
+            <h2 class="text-xl font-bold text-white mb-1">친윤계 아카이브</h2>
+            <p class="text-slate-400 text-xs mb-6 tracking-widest uppercase">보안 구역</p>
+            
+            <div id="login-form">
+                <input type="password" id="pwd-input" placeholder="비밀번호를 입력하세요" 
+                       class="w-full bg-slate-900 border border-slate-600 text-white text-center rounded-xl py-3 px-4 mb-4 focus:outline-none focus:border-blue-500">
+                <button onclick="manualLogin()" id="login-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition-colors">
+                    보안 해제
+                </button>
+            </div>
+            
+            <!-- 자동 로그인 로딩 표시 -->
+            <div id="auto-login-loading" class="hidden flex flex-col items-center mt-4">
+                <div class="w-6 h-6 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin mb-2"></div>
+                <p class="text-blue-400 text-sm font-bold">보안 인증 확인 중...</p>
+            </div>
+
+            <p id="login-error" class="text-red-400 text-xs mt-4 hidden">비밀번호가 일치하지 않습니다.</p>
+        </div>
+    </div>
+
+    <!-- 🔓 메인 컨텐츠 (초기엔 숨김) -->
+    <div id="main-content" class="hidden">
+        <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 p-4 shadow-sm">
+            <div class="max-w-2xl mx-auto flex justify-between items-center">
+                <h1 class="text-xl font-extrabold tracking-tight text-slate-900">
+                    🏛️ 친윤계 <span class="text-blue-600">창고</span>
+                </h1>
+                <div class="flex gap-2 items-center">
+                    <button onclick="logout()" class="text-[10px] text-slate-500 hover:text-slate-800 font-bold underline">로그아웃</button>
+                    <a href="https://forms.gle/3ezmx1wanHSgKZZd6" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-full shadow-md">
+                        + 투고
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-2xl mx-auto px-4 mt-6">
+            <!-- 랭킹 -->
+            <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-xl">🔥</span><h2 class="text-lg font-bold text-slate-800">기여도 랭킹</h2>
+                </div>
+                <div id="ranking-list" class="flex flex-col gap-2"></div>
+            </section>
+
+            <!-- 컨트롤 패널 -->
+            <div class="sticky top-[68px] z-40 bg-[#f8fafc] pt-2 pb-3 border-b border-slate-200 mb-4">
+                <div class="relative mb-3">
+                    <input type="text" id="search-input" oninput="handleSearch()" placeholder="검색..." class="w-full bg-white border border-slate-300 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:border-blue-500 shadow-sm">
+                    <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+                </div>
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-sm font-bold text-slate-800">기밀 문서고</h2>
+                    <div class="flex gap-2">
+                        <button onclick="toggleView()" id="view-btn" class="bg-white border border-slate-300 text-xs font-bold rounded-lg px-3 py-1.5 shadow-sm">🗂️ 갤러리</button>
+                        <select id="sort-select" onchange="changeSort()" class="bg-white border border-slate-300 text-xs font-bold rounded-lg px-2 py-1.5 shadow-sm outline-none">
+                            <option value="desc">최신순</option><option value="asc">과거순</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="subject-tabs" class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide whitespace-nowrap"></div>
+            </div>
+
+            <div id="loading" class="py-10 text-center hidden"><p class="text-slate-500 font-medium animate-pulse">데이터 로딩 중...</p></div>
+            <div id="data-list" class="hidden"></div>
+            <div id="load-more-container" class="hidden text-center mt-6 mb-8">
+                <button onclick="loadMore()" class="bg-white border border-slate-300 text-slate-700 font-bold py-3 px-8 rounded-full shadow-sm w-full sm:w-auto">더보기 ⬇️</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 🚨 하진님의 웹 앱 URL 입력!
+        const API_BASE_URL = "https://script.google.com/macros/s/AKfycbyCfpM6OzfKAbbqpLhxrV04n1zy0TjLN_MVIwmtIQ51QYs8xvO07TxIRqo3q_8LUfzC/exec";
+        
+        let allData =[];
+        let currentSubject = '전체';
+        let currentSort = 'desc';
+        let searchQuery = '';
+        let viewMode = 'list'; 
+        let displayCount = 10; 
+
+        // 🟢 페이지 접속 시 자동 로그인 체크
+        window.onload = () => {
+            const savedPwd = localStorage.getItem('chinYunPwd');
+            if (savedPwd) {
+                // 저장된 비번이 있으면 UI를 자동 로그인 모드로 변경
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('auto-login-loading').classList.remove('hidden');
+                executeLogin(savedPwd);
+            }
+        };
+
+        // 엔터키 지원
+        document.getElementById("pwd-input").addEventListener("keypress", (e) => {
+            if (e.key === "Enter") manualLogin();
+        });
+
+        // 수동 로그인 (버튼 클릭)
+        function manualLogin() {
+            const pwd = document.getElementById('pwd-input').value;
+            if (!pwd) return;
+            document.getElementById('login-btn').innerText = "확인 중...";
+            executeLogin(pwd);
+        }
+
+        // 실제 로그인 처리 로직
+        async function executeLogin(pwd) {
+            const errorMsg = document.getElementById('login-error');
+            errorMsg.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}?pwd=${encodeURIComponent(pwd)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    // 비번이 틀렸거나, 방장이 비번을 바꿨을 때
+                    localStorage.removeItem('chinYunPwd'); // 저장된 비번 삭제
+                    errorMsg.innerText = "❌ " + data.error;
+                    errorMsg.classList.remove('hidden');
+                    
+                    // 폼 원상복구
+                    document.getElementById('login-btn').innerText = "보안 해제";
+                    document.getElementById('login-form').classList.remove('hidden');
+                    document.getElementById('auto-login-loading').classList.add('hidden');
+                } else {
+                    // 로그인 성공 시 로컬 스토리지에 저장 (다음 접속 때 폼 패스)
+                    localStorage.setItem('chinYunPwd', pwd);
+                    
+                    document.getElementById('login-screen').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('login-screen').style.display = 'none';
+                        document.getElementById('main-content').classList.remove('hidden');
+                        allData = data;
+                        initData();
+                    }, 400);
+                }
+            } catch (error) {
+                errorMsg.innerText = "서버 통신 에러가 발생했습니다.";
+                errorMsg.classList.remove('hidden');
+                document.getElementById('login-btn').innerText = "보안 해제";
+            }
+        }
+
+        // 🔴 로그아웃 (기기에서 인증 정보 삭제)
+        function logout() {
+            localStorage.removeItem('chinYunPwd');
+            location.reload(); // 페이지 새로고침하여 로그인 화면으로
+        }
+
+        // --- (이하 렌더링 로직은 기존과 완전 동일합니다) ---
+        function initData() {
+            renderRanking();
+            renderTabs();
+            renderList();
+        }
+
+        function renderRanking() {
+            const container = document.getElementById('ranking-list');
+            const now = new Date();
+            const monthData = allData.filter(item => {
+                const d = new Date(item.timestamp);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            });
+            const counts = {};
+            monthData.forEach(item => counts[item.name] = (counts[item.name] || 0) + 1);
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+            container.innerHTML = sorted.length === 0 ? '<p class="text-sm text-slate-500">데이터 없음</p>' : '';
+            sorted.slice(0, 3).forEach((u, i) => {
+                const medal =['🥇', '🥈', '🥉'][i] || i+1;
+                container.innerHTML += `<div class="flex justify-between items-center bg-slate-50 border border-slate-100 p-2.5 rounded-lg"><div class="flex gap-2"><span class="text-base">${medal}</span><span class="font-bold text-sm">${u[0]}</span></div><span class="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">${u[1]}건</span></div>`;
+            });
+        }
+
+        function renderTabs() {
+            const container = document.getElementById('subject-tabs');
+            const subjects =['전체', ...new Set(allData.map(item => item.subject))];
+            container.innerHTML = '';
+            subjects.forEach(subject => {
+                const isActive = subject === currentSubject;
+                const activeClass = isActive ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200";
+                container.innerHTML += `<button onclick="changeSubject('${subject}')" class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors border shadow-sm ${activeClass}">${subject}</button>`;
+            });
+        }
+
+        function changeSubject(sub) { currentSubject = sub; displayCount = 10; renderList(); renderTabs(); }
+        function changeSort() { currentSort = document.getElementById('sort-select').value; displayCount = 10; renderList(); }
+        function handleSearch() { searchQuery = document.getElementById('search-input').value.toLowerCase(); displayCount = 10; renderList(); }
+        function toggleView() { viewMode = viewMode === 'list' ? 'gallery' : 'list'; document.getElementById('view-btn').innerHTML = viewMode === 'list' ? '🗂️ 갤러리' : '📄 리스트'; renderList(); }
+        function loadMore() { displayCount += 10; renderList(); }
+
+        function renderList() {
+            const container = document.getElementById('data-list');
+            const loadMoreBtn = document.getElementById('load-more-container');
+            container.classList.remove('hidden');
+            
+            let filtered = allData.filter(item => {
+                const matchSubject = currentSubject === '전체' || item.subject === currentSubject;
+                const searchString = `${item.title} ${item.teacher} ${item.notes} ${item.name}`.toLowerCase();
+                const matchSearch = searchQuery === '' || searchString.includes(searchQuery);
+                return matchSubject && matchSearch;
+            });
+
+            filtered.sort((a, b) => {
+                const d1 = new Date(a.timestamp), d2 = new Date(b.timestamp);
+                return currentSort === 'desc' ? d2 - d1 : d1 - d2;
+            });
+
+            const currentData = filtered.slice(0, displayCount);
+            container.className = viewMode === 'list' ? 'flex flex-col space-y-4' : 'grid grid-cols-2 gap-3 sm:gap-4';
+
+            if (currentData.length === 0) {
+                container.innerHTML = `<div class="bg-white border rounded-xl p-8 text-center text-slate-500 text-sm mt-4">${searchQuery !== '' ? '검색 결과가 없습니다.' : '자료가 없습니다.'}</div>`;
+                loadMoreBtn.classList.add('hidden');
+                return;
+            }
+
+            container.innerHTML = '';
+            currentData.forEach(item => {
+                let fileBtns = "";
+                if (item.fileUrls && item.fileUrls.length > 0 && item.fileUrls[0] !== "") {
+                    fileBtns = `<a href="${item.fileUrls[0]}" target="_blank" class="w-full bg-blue-50 text-blue-600 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center border hover:bg-blue-100 transition-colors">💾 파일 열람 ${item.fileUrls.length > 1 ? '(+' + (item.fileUrls.length-1) + ')' : ''}</a>`;
+                }
+
+                const listCard = `<div class="bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow"><div class="flex justify-between items-center mb-2"><span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded border">${item.subject}</span><span class="text-[10px] text-slate-400">${new Date(item.timestamp).toLocaleDateString()}</span></div><h3 class="text-slate-900 font-extrabold text-base mb-1">${item.title}</h3><p class="text-xs text-slate-500 mb-3 font-semibold">👨‍🏫 ${item.teacher} 쌤</p><div class="bg-slate-50 rounded-lg p-3 mb-3 text-sm text-slate-600 whitespace-pre-wrap border">${item.notes || '보고사항 없음'}</div>${fileBtns}<div class="mt-3 text-right text-[10px] text-slate-400 font-bold">👤 제보: <span class="text-blue-500">${item.name}</span></div></div>`;
+                const galleryCard = `<div class="bg-white border rounded-xl p-3 shadow-sm flex flex-col h-full hover:shadow-md transition-shadow"><div class="flex justify-between items-center mb-2"><span class="bg-slate-100 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded border">${item.subject}</span><span class="text-[9px] text-slate-400">${new Date(item.timestamp).toLocaleDateString().slice(2)}</span></div><h3 class="text-slate-900 font-bold text-sm mb-1 leading-tight line-clamp-2">${item.title}</h3><p class="text-[10px] text-slate-500 mb-2">👨‍🏫 ${item.teacher}</p><p class="text-[11px] text-slate-600 bg-slate-50 p-2 rounded mb-2 flex-grow line-clamp-3 border">${item.notes || '내용 없음'}</p><div class="mt-auto">${fileBtns}<div class="mt-2 text-right text-[9px] text-slate-400 font-bold">제보: <span class="text-slate-600">${item.name}</span></div></div></div>`;
+                
+                container.innerHTML += viewMode === 'list' ? listCard : galleryCard;
+            });
+
+            if (filtered.length > displayCount) loadMoreBtn.classList.remove('hidden');
+            else loadMoreBtn.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
